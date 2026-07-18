@@ -81,11 +81,16 @@ CPHA=0 slaves see a stable first bit.
 | `test_reset` | outputs safe out of reset (`cs_n=1`, `busy=0`, `done=0`) |
 | `test_directed_all_modes` | full sweep: mode × order × divider × special data |
 | `test_back_to_back` | consecutive transfers with no idle gap |
+| `test_sclk_timing` | SCLK half-period is exactly `clk_div + 1` system clocks, several dividers |
+| `test_busy_cs_timing` | `busy`/`cs_n` assert/deassert on the exact expected cycle, no glitches mid-transfer |
+| `test_start_ignored_while_busy` | a spurious `start` pulse mid-transfer can't restart or corrupt it |
+| `test_reset_mid_transfer` | `rst_n` asserted mid-transfer aborts safely and the controller recovers |
+| `test_variable_idle_gaps` | transfers separated by random idle gaps and mode changes |
 | `test_constrained_random` | 200 randomized transfers per width; closes coverage |
 
 ## Results
 
-All 5 tests pass at `DATA_WIDTH` = 8 and 16, and functional coverage closes at
+All 10 tests pass at `DATA_WIDTH` = 8 and 16, and functional coverage closes at
 100%:
 
 ```
