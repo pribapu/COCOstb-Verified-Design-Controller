@@ -31,6 +31,7 @@ def run_width(width):
         parameters={"DATA_WIDTH": width},
         build_dir=os.path.join(HERE, f"sim_build_w{width}"),
         always=True,
+        timescale=("1ns", "1ps"),
     )
     runner.test(
         hdl_toplevel="spi_master",
@@ -45,6 +46,7 @@ def run_waves():
     runner.build(
         sources=[RTL], hdl_toplevel="spi_master", parameters={"DATA_WIDTH": 8},
         build_dir=os.path.join(HERE, "wave_build"), waves=True, always=True,
+        timescale=("1ns", "1ps"),
     )
     runner.test(
         hdl_toplevel="spi_master", test_module="test_waves", test_dir=HERE,
