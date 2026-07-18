@@ -1,0 +1,9 @@
+# simulation build artifacts
+sim_build*/
+wave_build/
+__pycache__/
+*.log
+*.vcd
+*.fst
+spi_cov.json
+results.xml

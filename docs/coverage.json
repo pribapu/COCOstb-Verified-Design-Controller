@@ -1,0 +1,68 @@
+{
+  "mode": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "order": [
+    "lsb",
+    "msb"
+  ],
+  "width": [
+    8,
+    16
+  ],
+  "divider": [
+    "fast",
+    "slow"
+  ],
+  "tx_special": [
+    "alt_55",
+    "alt_AA",
+    "ones",
+    "other",
+    "zeros"
+  ],
+  "rx_special": [
+    "alt_55",
+    "alt_AA",
+    "ones",
+    "other",
+    "zeros"
+  ],
+  "mode_x_order": [
+    [
+      0,
+      "lsb"
+    ],
+    [
+      0,
+      "msb"
+    ],
+    [
+      1,
+      "lsb"
+    ],
+    [
+      1,
+      "msb"
+    ],
+    [
+      2,
+      "lsb"
+    ],
+    [
+      2,
+      "msb"
+    ],
+    [
+      3,
+      "lsb"
+    ],
+    [
+      3,
+      "msb"
+    ]
+  ]
+}
