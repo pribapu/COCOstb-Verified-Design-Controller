@@ -148,12 +148,3 @@ mode-3 transfer) if you just want to look at the waveform.
   iCEBreaker (iCE40) or Tang Nano (GW1N) — to demonstrate it runs on hardware.
 - SVA assertions bound into the RTL for CS/SCLK relationships.
 
-## Resume bullet
-
-> Designed a parameterizable SPI master controller in SystemVerilog (all four
-> CPOL/CPHA modes, configurable word width and clock divider) and built a
-> self-checking cocotb testbench with constrained-random stimulus, an
-> independent slave BFM, and a scoreboard — reaching **100% functional
-> coverage**; validated the environment with **mutation testing** that confirmed
-> it catches SPI protocol-timing bugs (wrong sampling edge, bit-order, edge
-> count, CS/clock-polarity).
