@@ -151,7 +151,7 @@ module spi_apb_wrapper #(
     wire tx_apb_push_req = apb_write && (reg_sel == REG_TXDATA);
     wire eng_fire         = en_r && (tx_count != 0) && spi_idle;
     wire tx_pop           = eng_fire;
-    wire tx_push_ok        = tx_apb_push_req && ((tx_count < FIFO_DEPTH) || tx_pop);
+    wire tx_push_ok        = tx_apb_push_req && ((tx_count < CNTW'(FIFO_DEPTH)) || tx_pop);
     wire tx_dropped_event  = tx_apb_push_req && !tx_push_ok;
 
     assign spi_start   = eng_fire;
@@ -172,8 +172,8 @@ module spi_apb_wrapper #(
                 tx_wptr <= tx_wptr + 1'b1;
             end
             if (tx_pop) tx_rptr <= tx_rptr + 1'b1;
-            tx_count <= tx_count + (tx_push_ok ? 1'b1 : 1'b0)
-                                  - (tx_pop     ? 1'b1 : 1'b0);
+            tx_count <= tx_count + (tx_push_ok ? CNTW'(1) : CNTW'(0))
+                                  - (tx_pop     ? CNTW'(1) : CNTW'(0));
         end
     end
 
@@ -185,7 +185,7 @@ module spi_apb_wrapper #(
     wire rx_apb_pop_req   = apb_read && (reg_sel == REG_RXDATA);
     wire rx_pop            = rx_apb_pop_req && (rx_count != 0);
     wire rx_push_req       = spi_done;
-    wire rx_push_ok         = rx_push_req && ((rx_count < FIFO_DEPTH) || rx_pop);
+    wire rx_push_ok         = rx_push_req && ((rx_count < CNTW'(FIFO_DEPTH)) || rx_pop);
     wire rx_overrun_event   = rx_push_req && !rx_push_ok;
 
     always_ff @(posedge clk or negedge rst_n) begin
@@ -203,15 +203,15 @@ module spi_apb_wrapper #(
                 rx_wptr <= rx_wptr + 1'b1;
             end
             if (rx_pop) rx_rptr <= rx_rptr + 1'b1;
-            rx_count <= rx_count + (rx_push_ok ? 1'b1 : 1'b0)
-                                  - (rx_pop      ? 1'b1 : 1'b0);
+            rx_count <= rx_count + (rx_push_ok ? CNTW'(1) : CNTW'(0))
+                                  - (rx_pop      ? CNTW'(1) : CNTW'(0));
         end
     end
 
     wire tx_empty = (tx_count == 0);
-    wire tx_full  = (tx_count == FIFO_DEPTH);
+    wire tx_full  = (tx_count == CNTW'(FIFO_DEPTH));
     wire rx_empty = (rx_count == 0);
-    wire rx_full  = (rx_count == FIFO_DEPTH);
+    wire rx_full  = (rx_count == CNTW'(FIFO_DEPTH));
 
     // The RX-FIFO push triggered by `spi_done` commits one cycle after
     // `spi_busy` first reads 0 (both are registered off the same event, but
