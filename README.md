@@ -12,14 +12,17 @@ catches SPI protocol-timing bugs.
 ```
 spi_master_cocotb/
 ├── rtl/
-│   └── spi_master.sv         # the DUT: parameterizable SPI master, all 4 modes
+│   ├── spi_master.sv         # the DUT: parameterizable SPI master, all 4 modes
+│   └── spi_apb_wrapper.sv    # APB4 register/FIFO/IRQ wrapper around spi_master
 ├── tb/
 │   ├── spi_bfm.py            # SPI slave bus-functional model + SW reference
+│   ├── spi_apb_bfm.py        # minimal APB4 master driver
 │   ├── spi_coverage.py       # functional-coverage model + JSON aggregation
 │   ├── test_spi_master.py    # driver + scoreboard + directed/random tests
+│   ├── test_spi_apb.py       # APB register/FIFO/IRQ regression
 │   ├── test_waves.py         # short traced run for GTKWave
-│   ├── runner.py             # Python runner (Verilator): builds W=8 and W=16
-│   └── Makefile              # classic cocotb flow (Icarus Verilog)
+│   ├── runner.py             # Python runner (Verilator): builds W=8, W=16, APB
+│   └── Makefile              # classic cocotb flow (Icarus Verilog); `make apb`
 ├── docs/
 │   ├── coverage_report.txt   # captured 100% coverage report
 │   ├── coverage.json         # merged coverage database
@@ -56,6 +59,27 @@ SPI timing implemented:
 SCLK idles at `CPOL`; a half-period of CS setup precedes the first edge so
 CPHA=0 slaves see a stable first bit.
 
+### APB register/FIFO wrapper
+
+`spi_apb_wrapper.sv` instantiates `spi_master` unmodified behind an APB4
+register file, so it can be dropped onto an SoC bus instead of driven pin by
+pin:
+
+- `CTRL` / `CONFIG` / `DIVIDER` / `STATUS` / `TXDATA` / `RXDATA` /
+  `IRQ_STATUS` registers (see the header comment in the RTL for the full bit
+  map).
+- TX/RX FIFOs (depth 8 by default) with a hardware auto-transfer engine that
+  drains the TX FIFO into the core whenever it's idle — software just fills
+  `TXDATA` and reads `RXDATA`, no per-byte polling of `busy`/`done` required.
+- A maskable interrupt (`irq`) on transfer-done, TX-FIFO-empty, RX-FIFO-full,
+  and RX overrun.
+- `CTRL.TX_FLUSH` / `RX_FLUSH` to clear queued (not in-flight) data.
+
+Verified by `test_spi_apb.py`: register read/write semantics, FIFO fill /
+drain / overflow, flush (including mid-transfer), IRQ masking, and an
+end-to-end hardware-driven burst, all cross-checked against `spi_reference()`
+via the same `SPISlaveBFM` used for the core.
+
 ## The verification environment
 
 - **Driver** — `do_transfer()` drives the CPU handshake for one transfer and
@@ -87,8 +111,11 @@ CPHA=0 slaves see a stable first bit.
 
 ## Results
 
-All 5 tests pass at `DATA_WIDTH` = 8 and 16, and functional coverage closes at
-100%:
+All 5 core tests pass at `DATA_WIDTH` = 8 and 16, and functional coverage on
+that regression closes at 100% (captured before the APB wrapper below was
+added; `spi_coverage.py` now also defines `reg_access`/`fifo_state`/
+`irq_source` bins that `test_spi_apb.py` closes — see CI for the current
+combined result):
 
 ```
 FUNCTIONAL COVERAGE REPORT
@@ -126,10 +153,11 @@ pip install cocotb
 cd tb
 make                 # SIM=icarus, DATA_WIDTH=8
 make DATA_WIDTH=16
+make apb             # APB wrapper regression
 make waves           # open dump.vcd in GTKWave
 ```
 
-### Option B — Verilator + Python runner (builds W=8 and W=16, checks coverage)
+### Option B — Verilator + Python runner (builds W=8, W=16, APB; checks coverage)
 
 ```bash
 pip install cocotb verilator     # 'verilator' PyPI wheel ships the binary
@@ -144,7 +172,7 @@ mode-3 transfer) if you just want to look at the waveform.
 
 ## Possible next steps
 
-- Add an APB/AXI-Lite register interface and a TX/RX FIFO for burst transfers.
+- AXI-Lite variant of the register wrapper.
 - Multi-slave chip-select decode.
 - Synthesize for a cheap FPGA with the open toolchain (Yosys + nextpnr) — e.g.
   iCEBreaker (iCE40) or Tang Nano (GW1N) — to demonstrate it runs on hardware.

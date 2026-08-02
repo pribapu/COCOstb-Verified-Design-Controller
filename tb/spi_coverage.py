@@ -33,6 +33,12 @@ class Coverage:
             "rx_special": set(SPECIAL_DATA.keys()),
             "mode_x_order": {(m, o) for m in range(4)
                              for o in ("msb", "lsb")},
+            # ---- APB register/FIFO/IRQ bins (sampled by test_spi_apb.py) ----
+            "reg_access": {"ctrl", "config", "divider", "status",
+                            "txdata", "rxdata", "irq_status"},
+            "fifo_state": {"tx_empty", "tx_partial", "tx_full",
+                            "rx_empty", "rx_partial", "rx_full"},
+            "irq_source": {"done", "tx_empty", "rx_full", "overrun"},
         }
         self.hits = {k: set() for k in self.goals}
 
@@ -49,6 +55,18 @@ class Coverage:
                 self.hits["tx_special"].add(name)
             if pred(rx, width):
                 self.hits["rx_special"].add(name)
+
+    def sample_apb(self, reg=None, tx_fifo_state=None, rx_fifo_state=None,
+                   irq_source=None):
+        """Record APB register/FIFO/IRQ coverage points (test_spi_apb.py)."""
+        if reg is not None:
+            self.hits["reg_access"].add(reg)
+        if tx_fifo_state is not None:
+            self.hits["fifo_state"].add(f"tx_{tx_fifo_state}")
+        if rx_fifo_state is not None:
+            self.hits["fifo_state"].add(f"rx_{rx_fifo_state}")
+        if irq_source is not None:
+            self.hits["irq_source"].add(irq_source)
 
     # ---- persistence / aggregation ----
     def to_dict(self):
