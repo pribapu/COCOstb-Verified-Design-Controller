@@ -1,5 +1,7 @@
 # SPI Master Controller with a cocotb Verification Environment
 
+[![SPI Master Regression](https://github.com/pribapu/COCOstb-Verified-Design-Controller/actions/workflows/regression.yml/badge.svg)](https://github.com/pribapu/COCOstb-Verified-Design-Controller/actions/workflows/regression.yml)
+
 A parameterizable **SPI master** written in SystemVerilog, verified with a
 self-checking **cocotb** (Python) testbench that uses constrained-random
 stimulus, an independent slave bus-functional model, a scoreboard, and a

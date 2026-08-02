@@ -1,0 +1,52 @@
+name: SPI Master Regression
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  icarus:
+    name: Icarus (DATA_WIDTH=${{ matrix.data_width }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        data_width: [8, 16]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install Icarus Verilog
+        run: sudo apt-get update && sudo apt-get install -y iverilog
+
+      - name: Install cocotb
+        run: pip install cocotb
+
+      - name: Run regression
+        working-directory: tb
+        run: make DATA_WIDTH=${{ matrix.data_width }}
+
+  verilator-coverage:
+    name: Verilator (both widths) + coverage gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install cocotb + verilator
+        run: pip install cocotb verilator
+
+      - name: Run regression + coverage gate
+        working-directory: tb
+        env:
+          SIM: verilator
+        run: python3 runner.py
