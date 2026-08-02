@@ -278,7 +278,10 @@ module spi_apb_wrapper #(
                                       tx_full, tx_empty,                // [3:2]
                                       1'b0, status_busy};               // [1:0]
             REG_TXDATA:    prdata = 32'h0;
-            REG_RXDATA:    prdata = {{(32 - DATA_WIDTH){1'b0}}, rx_mem[rx_rptr]};
+            // rx_mem is never reset (it's plain RAM); guard against reading
+            // an unwritten (X in simulation) slot when the FIFO is empty.
+            REG_RXDATA:    prdata = rx_empty ? 32'h0
+                                     : {{(32 - DATA_WIDTH){1'b0}}, rx_mem[rx_rptr]};
             REG_IRQSTATUS: prdata = {28'b0, irq_status};
             default:       prdata = 32'h0;
         endcase
