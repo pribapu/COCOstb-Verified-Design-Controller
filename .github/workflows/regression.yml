@@ -10,6 +10,7 @@ jobs:
   icarus:
     name: Icarus (DATA_WIDTH=${{ matrix.data_width }})
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       matrix:
         data_width: [8, 16]
@@ -33,6 +34,7 @@ jobs:
   icarus-apb:
     name: Icarus (APB wrapper)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -53,6 +55,7 @@ jobs:
   verilator-coverage:
     name: Verilator (both widths) + coverage gate
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -66,11 +69,20 @@ jobs:
       - name: Expose 'verilator' on PATH
         # The verilator PyPI wheel only registers a 'verilator-cli' console
         # script; cocotb's runner does shutil.which("verilator") directly and
-        # doesn't know about the wrapper, so give it a plain 'verilator' name.
+        # doesn't know about that wrapper. Symlinking straight to verilator-cli
+        # would recurse forever: verilator-cli's own verilator() also does
+        # shutil.which("verilator") to find the *real* binary, so a
+        # self-referential 'verilator' would just call itself. Point the
+        # symlink at the actual bundled perl-wrapper script instead.
         run: |
-          VC="$(command -v verilator-cli)"
-          ln -s "$VC" "$(dirname "$VC")/verilator"
-          verilator --version
+          VBIN="$(python -c "import verilator, os; print(os.path.join(os.path.dirname(verilator.__file__), 'bin', 'verilator'))")"
+          test -f "$VBIN"
+          mkdir -p "$RUNNER_TEMP/verilator-shim"
+          ln -s "$VBIN" "$RUNNER_TEMP/verilator-shim/verilator"
+          echo "$RUNNER_TEMP/verilator-shim" >> "$GITHUB_PATH"
+
+      - name: Verify verilator
+        run: verilator --version
 
       - name: Run regression + coverage gate
         working-directory: tb
