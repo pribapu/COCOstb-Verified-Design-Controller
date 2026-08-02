@@ -63,6 +63,15 @@ jobs:
       - name: Install cocotb + verilator
         run: pip install cocotb verilator
 
+      - name: Expose 'verilator' on PATH
+        # The verilator PyPI wheel only registers a 'verilator-cli' console
+        # script; cocotb's runner does shutil.which("verilator") directly and
+        # doesn't know about the wrapper, so give it a plain 'verilator' name.
+        run: |
+          VC="$(command -v verilator-cli)"
+          ln -s "$VC" "$(dirname "$VC")/verilator"
+          verilator --version
+
       - name: Run regression + coverage gate
         working-directory: tb
         env:
