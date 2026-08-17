@@ -151,10 +151,10 @@ injected; the clean RTL passes and every mutant is **killed** (caught):
 
 ### Option A — Icarus Verilog (the usual local flow)
 
-Install `iverilog`, `gtkwave`, and cocotb, then:
+Install `iverilog`, `gtkwave`, and the pinned Python deps, then:
 
 ```bash
-pip install cocotb
+pip install -r requirements.txt
 cd tb
 make                 # SIM=icarus, DATA_WIDTH=8
 make DATA_WIDTH=16
@@ -165,7 +165,7 @@ make waves           # open dump.vcd in GTKWave
 ### Option B — Verilator + Python runner (builds W=8, W=16, APB; checks coverage)
 
 ```bash
-pip install cocotb verilator     # 'verilator' PyPI wheel ships the binary
+pip install -r requirements.txt  # 'verilator' PyPI wheel ships the binary
 cd tb
 SIM=verilator python3 runner.py            # full regression + coverage gate
 SIM=verilator python3 runner.py --waves    # writes tb/dump.vcd

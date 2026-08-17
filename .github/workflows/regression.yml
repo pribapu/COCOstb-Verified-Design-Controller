@@ -20,12 +20,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
 
       - name: Install Icarus Verilog
         run: sudo apt-get update && sudo apt-get install -y iverilog
 
-      - name: Install cocotb
-        run: pip install cocotb
+      - name: Install Python deps
+        run: pip install -r requirements.txt
 
       - name: Run regression
         working-directory: tb
@@ -41,12 +43,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
 
       - name: Install Icarus Verilog
         run: sudo apt-get update && sudo apt-get install -y iverilog
 
-      - name: Install cocotb
-        run: pip install cocotb
+      - name: Install Python deps
+        run: pip install -r requirements.txt
 
       - name: Run APB regression
         working-directory: tb
@@ -62,9 +66,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
 
-      - name: Install cocotb + verilator
-        run: pip install cocotb verilator
+      - name: Install Python deps
+        run: pip install -r requirements.txt
 
       - name: Expose 'verilator' on PATH
         # The verilator PyPI wheel only registers a 'verilator-cli' console
