@@ -107,11 +107,16 @@ via the same `SPISlaveBFM` used for the core.
 | `test_reset` | outputs safe out of reset (`cs_n=1`, `busy=0`, `done=0`) |
 | `test_directed_all_modes` | full sweep: mode × order × divider × special data |
 | `test_back_to_back` | consecutive transfers with no idle gap |
+| `test_sclk_timing` | SCLK half-period == `clk_div+1` cycles exactly, across dividers |
+| `test_busy_cs_timing` | `busy`/`cs_n` assert/deassert together, cycle-accurate, no glitches |
+| `test_start_ignored_while_busy` | a spurious `start` mid-transfer doesn't restart/corrupt it |
+| `test_reset_mid_transfer` | reset asserted mid-transfer aborts safely; core recovers immediately |
+| `test_variable_idle_gaps` | 30 transfers with randomized idle gaps + per-transfer mode/order/divider changes |
 | `test_constrained_random` | 200 randomized transfers per width; closes coverage |
 
 ## Results
 
-All 5 core tests pass at `DATA_WIDTH` = 8 and 16, and functional coverage on
+All 10 core tests pass at `DATA_WIDTH` = 8 and 16, and functional coverage on
 that regression closes at 100% (captured before the APB wrapper below was
 added; `spi_coverage.py` now also defines `reg_access`/`fifo_state`/
 `irq_source` bins that `test_spi_apb.py` closes — see CI for the current
