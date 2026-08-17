@@ -64,5 +64,28 @@
       3,
       "msb"
     ]
+  ],
+  "reg_access": [
+    "config",
+    "ctrl",
+    "divider",
+    "irq_status",
+    "rxdata",
+    "status",
+    "txdata"
+  ],
+  "fifo_state": [
+    "rx_empty",
+    "rx_full",
+    "rx_partial",
+    "tx_empty",
+    "tx_full",
+    "tx_partial"
+  ],
+  "irq_source": [
+    "done",
+    "overrun",
+    "rx_full",
+    "tx_empty"
   ]
 }

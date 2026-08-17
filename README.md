@@ -116,11 +116,10 @@ via the same `SPISlaveBFM` used for the core.
 
 ## Results
 
-All 10 core tests pass at `DATA_WIDTH` = 8 and 16, and functional coverage on
-that regression closes at 100% (captured before the APB wrapper below was
-added; `spi_coverage.py` now also defines `reg_access`/`fifo_state`/
-`irq_source` bins that `test_spi_apb.py` closes — see CI for the current
-combined result):
+All 10 core tests and 9 APB tests pass at `DATA_WIDTH` = 8 and 16, and
+combined functional coverage across `tb/test_spi_master.py` and
+`tb/test_spi_apb.py` closes at 100% (captured via `tb/runner.py`; see
+`docs/coverage_report.txt` / `docs/coverage.json`):
 
 ```
 FUNCTIONAL COVERAGE REPORT
@@ -131,7 +130,10 @@ FUNCTIONAL COVERAGE REPORT
   tx_special      5/5   100.0%
   rx_special      5/5   100.0%
   mode_x_order    8/8   100.0%
-  OVERALL        28/28  100.0%
+  reg_access      7/7   100.0%
+  fifo_state      6/6   100.0%
+  irq_source      4/4   100.0%
+  OVERALL        45/45  100.0%
 ```
 
 ### Fault-injection (mutation) testing
