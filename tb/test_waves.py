@@ -3,6 +3,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import RisingEdge
 from spi_bfm import SPISlaveBFM
 
+
 @cocotb.test()
 async def gen_waves(dut):
     cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())

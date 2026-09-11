@@ -1,0 +1,47 @@
+# SymbiYosys job for spi_apb_wrapper (with the spi_master core inside).
+#
+#   sby -f spi_apb_wrapper.sby           # all tasks
+#
+# prove:   unbounded proof of the wrapper p_* properties, every spi_master p_*
+#          property re-proven in context, and spi_master's input contract
+#          discharged as an *assertion* (assume-guarantee: the standalone core
+#          proof assumes it, this proof shows the wrapper guarantees it).
+# cover:   reachability of the c_* cover points.
+# bmc_ext: bounded check without the inv_* helper invariants (mutation flow).
+#
+# prove runs the shipped defaults (DATA_WIDTH=8, FIFO_DEPTH=8, NUM_CS=4) with
+# DIV_WIDTH reduced to 4 as in the core proof. cover and bmc_ext use a
+# 2-deep FIFO so full / overrun scenarios fit in a short trace (the FIFO logic
+# is depth-generic; prove covers the real depth).
+
+[tasks]
+prove    d8
+cover    d2
+bmc_ext  bmc noinv d2
+
+[options]
+prove: mode prove
+prove: depth 4
+cover: mode cover
+cover: depth 75
+bmc: mode bmc
+bmc: depth 72
+
+[engines]
+~bmc: smtbmc yices
+bmc:  abc bmc3
+
+[script]
+plugin -i slang
+d8:     read_slang -D SPI_CORE_ASSUME_INPUTS=0 --top spi_apb_wrapper -G DIV_WIDTH=4 spi_master.sv spi_apb_wrapper.sv spi_master_props.sv spi_master_bind.sv spi_apb_wrapper_props.sv spi_apb_wrapper_bind.sv
+cover:  read_slang -D SPI_CORE_ASSUME_INPUTS=0 --top spi_apb_wrapper -G DIV_WIDTH=4 -G FIFO_DEPTH=2 spi_master.sv spi_apb_wrapper.sv spi_master_props.sv spi_master_bind.sv spi_apb_wrapper_props.sv spi_apb_wrapper_bind.sv
+noinv:  read_slang -D SPI_CORE_ASSUME_INPUTS=0 -D SPI_PROPS_NO_INV --top spi_apb_wrapper -G DIV_WIDTH=4 -G FIFO_DEPTH=2 spi_master.sv spi_apb_wrapper.sv spi_master_props.sv spi_master_bind.sv spi_apb_wrapper_props.sv spi_apb_wrapper_bind.sv
+prep -top spi_apb_wrapper
+
+[files]
+../rtl/spi_master.sv
+../rtl/spi_apb_wrapper.sv
+spi_master_props.sv
+spi_master_bind.sv
+spi_apb_wrapper_props.sv
+spi_apb_wrapper_bind.sv

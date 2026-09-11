@@ -9,6 +9,7 @@ cycle -- no wait-state handling is needed here.
 
 from cocotb.triggers import RisingEdge
 
+# ---- register map (mirrors the header comment in rtl/spi_apb_wrapper.sv) ----
 REG_CTRL = 0x00
 REG_CONFIG = 0x04
 REG_DIVIDER = 0x08
@@ -16,6 +17,47 @@ REG_STATUS = 0x0C
 REG_TXDATA = 0x10
 REG_RXDATA = 0x14
 REG_IRQ_STATUS = 0x18
+REG_CS_CTRL = 0x1C
+
+CTRL_EN = 1 << 0
+CTRL_TX_FLUSH = 1 << 1
+CTRL_RX_FLUSH = 1 << 2
+
+CFG_CPOL = 1 << 0
+CFG_CPHA = 1 << 1
+CFG_LSB = 1 << 2
+CFG_IRQ_EN_DONE = 1 << 3
+CFG_IRQ_EN_TXE = 1 << 4
+CFG_IRQ_EN_RXF = 1 << 5
+CFG_IRQ_EN_OV = 1 << 6
+
+ST_BUSY = 1 << 0
+ST_CS_ACTIVE = 1 << 1
+ST_TX_EMPTY = 1 << 2
+ST_TX_FULL = 1 << 3
+ST_RX_EMPTY = 1 << 4
+ST_RX_FULL = 1 << 5
+ST_RX_OVERRUN = 1 << 6
+ST_TX_DROPPED = 1 << 7
+
+IRQ_DONE = 1 << 0
+IRQ_TXE = 1 << 1
+IRQ_RXF = 1 << 2
+IRQ_OV = 1 << 3
+
+CS_HOLD = 1 << 8
+
+
+def tx_count(status):
+    return (status >> 8) & 0xFF
+
+
+def rx_count(status):
+    return (status >> 16) & 0xFF
+
+
+def mode_bits(cpol, cpha, lsb=0):
+    return (CFG_CPOL if cpol else 0) | (CFG_CPHA if cpha else 0) | (CFG_LSB if lsb else 0)
 
 
 class APBMaster:

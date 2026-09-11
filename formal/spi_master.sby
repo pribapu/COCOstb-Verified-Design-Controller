@@ -1,0 +1,44 @@
+# SymbiYosys job for the spi_master core.
+#
+#   sby -f spi_master.sby            # all tasks
+#   sby -f spi_master.sby prove_w8   # one task
+#
+# prove_*: unbounded proof (k-induction) of every p_* property for all modes,
+#          bit orders, dividers, data and MISO values, at two word widths.
+# cover:   reachability traces for the c_* cover points (non-vacuity).
+# bmc_ext: bounded check of the p_* properties *without* the inv_* helper
+#          invariants -- used by the mutation flow to report which externally
+#          meaningful property a bug violates.
+#
+# DIV_WIDTH is reduced to 4 for the proof; the divider logic is a
+# width-generic down-counter, so this bounds run time without changing any
+# behaviour the properties talk about.
+
+[tasks]
+prove_w8   prove w8
+prove_w16  prove w16
+cover      w8
+bmc_ext    bmc noinv
+
+[options]
+prove: mode prove
+prove: depth 4
+cover: mode cover
+cover: depth 60
+bmc: mode bmc
+bmc: depth 45
+
+[engines]
+smtbmc yices
+
+[script]
+plugin -i slang
+w8:        read_slang -D SPI_CORE_ASSUME_INPUTS=1 --top spi_master -G DATA_WIDTH=8  -G DIV_WIDTH=4 spi_master.sv spi_master_props.sv spi_master_bind.sv
+noinv:     read_slang -D SPI_CORE_ASSUME_INPUTS=1 -D SPI_PROPS_NO_INV --top spi_master -G DATA_WIDTH=8 -G DIV_WIDTH=4 spi_master.sv spi_master_props.sv spi_master_bind.sv
+w16:       read_slang -D SPI_CORE_ASSUME_INPUTS=1 --top spi_master -G DATA_WIDTH=16 -G DIV_WIDTH=4 spi_master.sv spi_master_props.sv spi_master_bind.sv
+prep -top spi_master
+
+[files]
+../rtl/spi_master.sv
+spi_master_props.sv
+spi_master_bind.sv

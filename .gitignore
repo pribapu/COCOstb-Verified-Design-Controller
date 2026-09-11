@@ -5,5 +5,13 @@ __pycache__/
 *.log
 *.vcd
 *.fst
-spi_cov.json
+spi_cov*.json
 results.xml
+
+# ...but keep the example waveform the README points to
+!docs/*.vcd
+
+# SymbiYosys work directories (formal/<job>_<task>/) and synthesis output
+formal/*/
+synth/build/
+.ruff_cache/

@@ -10,6 +10,12 @@
 //
 // CPU-side handshake:
 //   - Pulse `start` for one clk cycle with `tx_data` and the config inputs valid.
+//     SCLK tracks `cpol` while idle and needs one idle cycle to settle, so
+//     `start` must come (a) >= 1 clk after reset, (b) not on the `done`
+//     cycle, and (c) with `cpol` unchanged from the previous cycle --
+//     otherwise SCLK would move on the same edge CS_n asserts.
+//     spi_apb_wrapper guarantees this; the standalone formal proof assumes
+//     it and the wrapper proof checks it as an assertion.
 //   - `busy` is high for the duration of the transfer.
 //   - `done` pulses for one clk cycle when the transfer completes; `rx_data`
 //     is valid on that cycle and held until the next transfer.
@@ -101,6 +107,13 @@ module spi_master #(
                 S_IDLE: begin
                     cs_n <= 1'b1;
                     busy <= 1'b0;
+                    // SCLK follows CPOL while deselected, so it is already at
+                    // the idle level before CS_n asserts. (Setting it only at
+                    // `start` made SCLK toggle on the same edge CS_n fell
+                    // whenever CPOL changed between transfers -- a spurious
+                    // clock edge at frame start. Caught by protocol-checker
+                    // rule SPI-1 and formal property p_sclk_quiet_on_cs_edge.)
+                    sclk <= cpol;
                     if (start) begin
                         // Latch configuration for this transfer.
                         cpha_l <= cpha;

@@ -27,12 +27,13 @@ import random
 
 import cocotb
 from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, Timer
-
+from cocotb.triggers import RisingEdge
 from spi_bfm import SPISlaveBFM, spi_reference
 from spi_coverage import Coverage
+from spi_protocol_checker import SPIProtocolChecker
 
 CLK_NS = 10
+TEST_TIMEOUT_US = 2000   # sim-time budget per test (longest needs ~170 us)
 COV = Coverage()
 COV_FILE = os.environ.get("SPI_COV_FILE", "spi_cov.json")
 
@@ -58,6 +59,15 @@ async def _reset(dut):
         await RisingEdge(dut.clk)
     dut.rst_n.value = 1
     await RisingEdge(dut.clk)
+
+
+def start_slave(dut, w):
+    """Start the reactive slave BFM plus the independent, clock-synchronous
+    protocol checker (which takes its expected mode from the BFM config)."""
+    bfm = SPISlaveBFM(dut, w)
+    bfm.task = cocotb.start_soon(bfm.run())
+    cocotb.start_soon(SPIProtocolChecker(dut, w, cfg=bfm).run())
+    return bfm
 
 
 async def do_transfer(dut, bfm, cpol, cpha, lsb, div, tx, slave_tx, check=True):
@@ -141,19 +151,18 @@ async def _measure_half_periods(dut, n_toggles):
 
 
 # ---------------------------------------------------------------------------
-@cocotb.test()
+@cocotb.test(timeout_time=TEST_TIMEOUT_US, timeout_unit="us")
 async def test_smoke(dut):
     """One mode-0 transfer end to end."""
     await _start_clock(dut)
     await _reset(dut)
-    bfm = SPISlaveBFM(dut, _width(dut))
-    cocotb.start_soon(bfm.run())
+    bfm = start_slave(dut, _width(dut))
     rx = await do_transfer(dut, bfm, cpol=0, cpha=0, lsb=0, div=1,
                            tx=0xA5, slave_tx=0x3C)
     dut._log.info(f"smoke rx=0x{rx:X}")
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=TEST_TIMEOUT_US, timeout_unit="us")
 async def test_reset(dut):
     """Outputs are in a safe state after reset."""
     await _start_clock(dut)
@@ -163,14 +172,13 @@ async def test_reset(dut):
     assert int(dut.done.value) == 0, "done should be low after reset"
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=TEST_TIMEOUT_US, timeout_unit="us")
 async def test_directed_all_modes(dut):
     """Exhaustive sweep of mode x order x divider x special data patterns."""
     await _start_clock(dut)
     await _reset(dut)
     w = _width(dut)
-    bfm = SPISlaveBFM(dut, w)
-    cocotb.start_soon(bfm.run())
+    bfm = start_slave(dut, w)
     mask = (1 << w) - 1
     specials = [0x00 & mask, 0xFF & mask, 0xAA & mask, 0x55 & mask]
     for cpol in (0, 1):
@@ -183,28 +191,26 @@ async def test_directed_all_modes(dut):
                         await do_transfer(dut, bfm, cpol, cpha, lsb, div, tx, stx)
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=TEST_TIMEOUT_US, timeout_unit="us")
 async def test_back_to_back(dut):
     """Consecutive transfers issued with no idle cycles between them."""
     await _start_clock(dut)
     await _reset(dut)
     w = _width(dut)
-    bfm = SPISlaveBFM(dut, w)
-    cocotb.start_soon(bfm.run())
+    bfm = start_slave(dut, w)
     mask = (1 << w) - 1
     for i in range(8):
         await do_transfer(dut, bfm, cpol=0, cpha=1, lsb=0, div=0,
                           tx=random.randint(0, mask), slave_tx=random.randint(0, mask))
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=TEST_TIMEOUT_US, timeout_unit="us")
 async def test_sclk_timing(dut):
     """SCLK half-period must equal (clk_div + 1) system-clock cycles."""
     await _start_clock(dut)
     await _reset(dut)
     w = _width(dut)
-    bfm = SPISlaveBFM(dut, w)
-    cocotb.start_soon(bfm.run())
+    bfm = start_slave(dut, w)
 
     for div in (0, 1, 4, 15):
         mon = cocotb.start_soon(_measure_half_periods(dut, 2 * w))
@@ -217,7 +223,7 @@ async def test_sclk_timing(dut):
             f"got {periods}")
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=TEST_TIMEOUT_US, timeout_unit="us")
 async def test_busy_cs_timing(dut):
     """busy/cs_n always assert together and deassert together, with no
     glitches from the moment they assert until `done` pulses.
@@ -230,8 +236,7 @@ async def test_busy_cs_timing(dut):
     await _start_clock(dut)
     await _reset(dut)
     w = _width(dut)
-    bfm = SPISlaveBFM(dut, w)
-    cocotb.start_soon(bfm.run())
+    bfm = start_slave(dut, w)
 
     assert int(dut.busy.value) == 0
     assert int(dut.cs_n.value) == 1
@@ -276,15 +281,14 @@ async def test_busy_cs_timing(dut):
     await RisingEdge(dut.clk)
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=TEST_TIMEOUT_US, timeout_unit="us")
 async def test_start_ignored_while_busy(dut):
     """A spurious `start` pulse asserted mid-transfer must not restart or corrupt it."""
     await _start_clock(dut)
     await _reset(dut)
     w = _width(dut)
     mask = (1 << w) - 1
-    bfm = SPISlaveBFM(dut, w)
-    cocotb.start_soon(bfm.run())
+    bfm = start_slave(dut, w)
 
     dut.cpol.value = 0
     dut.cpha.value = 0
@@ -340,7 +344,7 @@ async def test_start_ignored_while_busy(dut):
     await RisingEdge(dut.clk)
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=TEST_TIMEOUT_US, timeout_unit="us")
 async def test_reset_mid_transfer(dut):
     """Reset asserted mid-transfer must abort safely, leaving the controller
     ready for a normal transfer immediately after."""
@@ -348,8 +352,7 @@ async def test_reset_mid_transfer(dut):
     await _reset(dut)
     w = _width(dut)
     mask = (1 << w) - 1
-    bfm = SPISlaveBFM(dut, w)
-    bfm_task = cocotb.start_soon(bfm.run())
+    bfm = start_slave(dut, w)
 
     dut.cpol.value = 0
     dut.cpha.value = 0
@@ -381,17 +384,17 @@ async def test_reset_mid_transfer(dut):
     assert int(dut.done.value) == 0, "done must clear on reset"
     assert int(dut.cs_n.value) == 1, "cs_n must deassert on reset"
 
-    # Retire the stale BFM (still mid-transfer against the aborted exchange)
-    # before starting a fresh one, so only one coroutine ever drives miso.
-    bfm_task.kill()
+    # Restart the BFM (its coroutine is still mid-transfer against the aborted
+    # exchange) so only one coroutine ever drives miso. The protocol checker
+    # is reset-aware and keeps running across the reset.
+    bfm.task.kill()
     dut.miso.value = 0
-    bfm2 = SPISlaveBFM(dut, w)
-    cocotb.start_soon(bfm2.run())
-    await do_transfer(dut, bfm2, cpol=1, cpha=1, lsb=1, div=0,
+    bfm.task = cocotb.start_soon(bfm.run())
+    await do_transfer(dut, bfm, cpol=1, cpha=1, lsb=1, div=0,
                       tx=0x3C & mask, slave_tx=0xC3 & mask)
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=TEST_TIMEOUT_US, timeout_unit="us")
 async def test_variable_idle_gaps(dut):
     """Transfers separated by varying idle gaps (including zero), with the
     mode/order/divider changing each time -- CS re-arming must not depend on
@@ -401,8 +404,7 @@ async def test_variable_idle_gaps(dut):
     await _start_clock(dut)
     await _reset(dut)
     w = _width(dut)
-    bfm = SPISlaveBFM(dut, w)
-    cocotb.start_soon(bfm.run())
+    bfm = start_slave(dut, w)
     mask = (1 << w) - 1
 
     for _ in range(30):
@@ -417,7 +419,7 @@ async def test_variable_idle_gaps(dut):
                           random.randint(0, mask), random.randint(0, mask))
 
 
-@cocotb.test()
+@cocotb.test(timeout_time=TEST_TIMEOUT_US, timeout_unit="us")
 async def test_constrained_random(dut):
     """Constrained-random regression; also fills any remaining coverage bins."""
     seed = int(os.environ.get("SPI_SEED", "1"))
@@ -425,8 +427,7 @@ async def test_constrained_random(dut):
     await _start_clock(dut)
     await _reset(dut)
     w = _width(dut)
-    bfm = SPISlaveBFM(dut, w)
-    cocotb.start_soon(bfm.run())
+    bfm = start_slave(dut, w)
     mask = (1 << w) - 1
 
     for _ in range(200):
@@ -442,6 +443,4 @@ async def test_constrained_random(dut):
     COV.merge_file(COV_FILE)
     report, overall = COV.report()
     dut._log.info(report)
-    # This build's own axes (everything except cross-width) must be complete.
-    _, per_build = COV.report()
     dut._log.info(f"Overall coverage after merge: {overall:.1f}%")
