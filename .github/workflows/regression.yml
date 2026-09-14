@@ -5,8 +5,43 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
+  lint:
+    name: Lint (Verilator -Wall, ruff)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt ruff==0.16.3
+
+      - name: Expose 'verilator' on PATH
+        # See the verilator-coverage job for why this points at the bundled
+        # perl wrapper rather than the 'verilator-cli' console script.
+        run: |
+          VBIN="$(python -c "import verilator, os; print(os.path.join(os.path.dirname(verilator.__file__), 'bin', 'verilator'))")"
+          mkdir -p "$RUNNER_TEMP/verilator-shim"
+          ln -s "$VBIN" "$RUNNER_TEMP/verilator-shim/verilator"
+          echo "$RUNNER_TEMP/verilator-shim" >> "$GITHUB_PATH"
+
+      - name: Verilator lint (-Wall)
+        working-directory: rtl
+        run: |
+          verilator --lint-only -Wall spi_master.sv
+          verilator --lint-only -Wall --top-module spi_apb_wrapper spi_master.sv spi_apb_wrapper.sv
+
+      - name: ruff
+        run: ruff check tb mutation synth
+
   icarus:
     name: Icarus (DATA_WIDTH=${{ matrix.data_width }})
     runs-on: ubuntu-latest
@@ -20,19 +55,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
 
       - name: Install Icarus Verilog
         run: sudo apt-get update && sudo apt-get install -y iverilog
 
-      - name: Install cocotb
-        run: pip install cocotb
+      - name: Install Python deps
+        run: pip install -r requirements.txt
 
       - name: Run regression
         working-directory: tb
         run: make DATA_WIDTH=${{ matrix.data_width }}
 
   icarus-apb:
-    name: Icarus (APB wrapper)
+    name: Icarus (APB wrapper + SPI flash end-to-end)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -41,19 +78,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
 
       - name: Install Icarus Verilog
         run: sudo apt-get update && sudo apt-get install -y iverilog
 
-      - name: Install cocotb
-        run: pip install cocotb
+      - name: Install Python deps
+        run: pip install -r requirements.txt
 
       - name: Run APB regression
         working-directory: tb
         run: make apb
 
   verilator-coverage:
-    name: Verilator (both widths) + coverage gate
+    name: Verilator (both widths + APB) + coverage gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -62,9 +101,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
 
-      - name: Install cocotb + verilator
-        run: pip install cocotb verilator
+      - name: Install Python deps
+        run: pip install -r requirements.txt
 
       - name: Expose 'verilator' on PATH
         # The verilator PyPI wheel only registers a 'verilator-cli' console
@@ -89,3 +130,76 @@ jobs:
         env:
           SIM: verilator
         run: python3 runner.py
+
+  formal:
+    name: Formal (SymbiYosys proofs + covers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: YosysHQ/setup-oss-cad-suite@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: spi_master (prove W=8/W=16, cover, bmc_ext)
+        working-directory: formal
+        run: sby -f spi_master.sby
+
+      - name: spi_apb_wrapper (assume-guarantee proof, cover, bmc_ext)
+        working-directory: formal
+        run: sby -f spi_apb_wrapper.sby
+
+  synth:
+    name: FPGA implementation (iCE40 + ECP5, 100 MHz)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: YosysHQ/setup-oss-cad-suite@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Synthesize, place & route, check timing
+        run: python3 synth/run_synth.py --check
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: synth-report
+          path: docs/synth_report.md
+
+  mutation:
+    name: Mutation testing (simulation vs formal)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    needs: [icarus-apb, formal]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
+      # Provides iverilog (for the cocotb runs) and sby/yosys/solvers.
+      - uses: YosysHQ/setup-oss-cad-suite@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run every mutant through simulation and formal
+        env:
+          SIM: icarus
+          # the interpreter that has cocotb, not OSS CAD Suite's bundled one
+          PYTHON: ${{ env.pythonLocation }}/bin/python
+        run: $PYTHON mutation/run_mutation.py --jobs 4
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mutation-report
+          path: docs/mutation_report.md

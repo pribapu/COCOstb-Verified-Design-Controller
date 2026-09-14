@@ -64,5 +64,119 @@
       3,
       "msb"
     ]
+  ],
+  "mode_transition": [
+    [
+      0,
+      0
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      2
+    ],
+    [
+      0,
+      3
+    ],
+    [
+      1,
+      0
+    ],
+    [
+      1,
+      1
+    ],
+    [
+      1,
+      2
+    ],
+    [
+      1,
+      3
+    ],
+    [
+      2,
+      0
+    ],
+    [
+      2,
+      1
+    ],
+    [
+      2,
+      2
+    ],
+    [
+      2,
+      3
+    ],
+    [
+      3,
+      0
+    ],
+    [
+      3,
+      1
+    ],
+    [
+      3,
+      2
+    ],
+    [
+      3,
+      3
+    ]
+  ],
+  "reg_access": [
+    "config",
+    "cs_ctrl",
+    "ctrl",
+    "divider",
+    "irq_status",
+    "rxdata",
+    "status",
+    "txdata"
+  ],
+  "fifo_state": [
+    "rx_empty",
+    "rx_full",
+    "rx_partial",
+    "tx_empty",
+    "tx_full",
+    "tx_partial"
+  ],
+  "irq_source": [
+    "done",
+    "overrun",
+    "rx_full",
+    "tx_empty"
+  ],
+  "cs_line": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "frame_words": [
+    "1",
+    "2-8",
+    "9+"
+  ],
+  "flash_op": [
+    "busy_poll",
+    "fast_read",
+    "jedec_id",
+    "long_stream",
+    "no_wel_ignored",
+    "nor_and",
+    "page_program",
+    "page_wrap",
+    "read",
+    "sector_erase",
+    "wren"
   ]
 }

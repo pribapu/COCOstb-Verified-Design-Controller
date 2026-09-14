@@ -71,7 +71,11 @@ def run_waves():
         hdl_toplevel="spi_master", test_module="test_waves", test_dir=HERE,
         extra_env={"PYTHONPATH": HERE}, waves=True,
     )
-    print("Waveform written to tb/dump.vcd  (open with: gtkwave tb/dump.vcd)")
+    # Verilator writes a VCD next to the tests; Icarus an FST in the build dir.
+    for cand in (os.path.join(HERE, "dump.vcd"),
+                 os.path.join(HERE, "wave_build", "spi_master.fst")):
+        if os.path.exists(cand):
+            print(f"Waveform written to {cand}  (open with: gtkwave {cand})")
 
 
 def main():

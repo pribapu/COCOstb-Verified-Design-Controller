@@ -1,0 +1,6 @@
+[tool.ruff]
+line-length = 100
+include = ["tb/*.py"]
+
+[tool.ruff.lint]
+extend-select = ["I"]

@@ -33,18 +33,33 @@ class Coverage:
             "rx_special": set(SPECIAL_DATA.keys()),
             "mode_x_order": {(m, o) for m in range(4)
                              for o in ("msb", "lsb")},
+            # Transition coverage: mode of transfer N-1 -> mode of transfer N.
+            # CPOL changes between frames are exactly what exposed the SCLK
+            # idle-level bug, so every ordered pair must be exercised.
+            "mode_transition": {(a, b) for a in range(4) for b in range(4)},
             # ---- APB register/FIFO/IRQ bins (sampled by test_spi_apb.py) ----
             "reg_access": {"ctrl", "config", "divider", "status",
-                            "txdata", "rxdata", "irq_status"},
+                            "txdata", "rxdata", "irq_status", "cs_ctrl"},
             "fifo_state": {"tx_empty", "tx_partial", "tx_full",
                             "rx_empty", "rx_partial", "rx_full"},
             "irq_source": {"done", "tx_empty", "rx_full", "overrun"},
+            # ---- multi-device bus / CS-hold framing ----
+            "cs_line": {0, 1, 2, 3},
+            "frame_words": {"1", "2-8", "9+"},
+            # ---- SPI NOR flash end-to-end (driver -> APB -> pins -> model) ----
+            "flash_op": {"jedec_id", "wren", "busy_poll", "read", "fast_read",
+                         "page_program", "page_wrap", "nor_and", "sector_erase",
+                         "no_wel_ignored", "long_stream"},
         }
         self.hits = {k: set() for k in self.goals}
+        self._prev_mode = None
 
     def sample(self, cpol, cpha, lsb_first, width, clk_div, tx, rx):
         mode = cpol * 2 + cpha
         order = "lsb" if lsb_first else "msb"
+        if self._prev_mode is not None:
+            self.hits["mode_transition"].add((self._prev_mode, mode))
+        self._prev_mode = mode
         self.hits["mode"].add(mode)
         self.hits["order"].add(order)
         self.hits["width"].add(width)
@@ -57,8 +72,15 @@ class Coverage:
                 self.hits["rx_special"].add(name)
 
     def sample_apb(self, reg=None, tx_fifo_state=None, rx_fifo_state=None,
-                   irq_source=None):
-        """Record APB register/FIFO/IRQ coverage points (test_spi_apb.py)."""
+                   irq_source=None, cs_line=None, frame_words=None, flash_op=None):
+        """Record APB register/FIFO/IRQ/bus coverage points (test_spi_apb.py)."""
+        if cs_line is not None:
+            self.hits["cs_line"].add(cs_line)
+        if frame_words is not None:
+            self.hits["frame_words"].add(
+                "1" if frame_words == 1 else "2-8" if frame_words <= 8 else "9+")
+        if flash_op is not None:
+            self.hits["flash_op"].add(flash_op)
         if reg is not None:
             self.hits["reg_access"].add(reg)
         if tx_fifo_state is not None:
@@ -70,7 +92,7 @@ class Coverage:
 
     # ---- persistence / aggregation ----
     def to_dict(self):
-        return {k: sorted(list(map(_key, v))) for k, v in self.hits.items()}
+        return {k: sorted(map(_key, v)) for k, v in self.hits.items()}
 
     def merge_file(self, path):
         if os.path.exists(path):
@@ -106,4 +128,4 @@ def _key(v):
 
 
 def _unkey(field, v):
-    return tuple(v) if field == "mode_x_order" else v
+    return tuple(v) if isinstance(v, list) else v
